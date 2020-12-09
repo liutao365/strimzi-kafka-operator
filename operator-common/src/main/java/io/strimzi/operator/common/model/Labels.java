@@ -5,13 +5,13 @@
 package io.strimzi.operator.common.model;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
@@ -89,6 +89,16 @@ public class Labels {
     public static final String KUBERNETES_MANAGED_BY_LABEL = KUBERNETES_DOMAIN + "managed-by";
 
     /**
+     * The component is deployed by which tools: paas|jvessel|devops 
+     */
+    public static final String KUBERNETES_DEPLOY_BY_LABEL = KUBERNETES_DOMAIN + "deploy-by";
+    
+    /**
+     * The component name: kafka|zookeeper|exporter|operator 
+     */
+    public static final String KUBERNETES_COMPONENT_LABEL = KUBERNETES_DOMAIN + "component";
+
+    /**
      * Used to identify individual pods
      */
     public static final String KUBERNETES_STATEFULSET_POD_LABEL = "statefulset.kubernetes.io/pod-name";
@@ -141,7 +151,7 @@ public class Labels {
                 .entrySet()
                 .stream()
                 .filter(entryset ->
-                        !entryset.getKey().startsWith(Labels.KUBERNETES_DOMAIN) || entryset.getKey().equals(KUBERNETES_PART_OF_LABEL))
+                        !entryset.getKey().startsWith(Labels.KUBERNETES_DOMAIN) || entryset.getKey().equals(KUBERNETES_PART_OF_LABEL) || entryset.getKey().equals(KUBERNETES_DEPLOY_BY_LABEL) || entryset.getKey().equals(KUBERNETES_COMPONENT_LABEL))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         return new Labels(filteredLabels);
@@ -253,7 +263,7 @@ public class Labels {
      * @return A new instance with the given kubernetes application instance added.
      */
     public Labels withKubernetesInstance(String instanceName) {
-        return with(Labels.KUBERNETES_INSTANCE_LABEL, getOrValidInstanceLabelValue(instanceName));
+        return with(Labels.KUBERNETES_INSTANCE_LABEL, getOnlyFirstPartofInstanceLabelValue(getOrValidInstanceLabelValue(instanceName)));
     }
 
     /**
@@ -295,6 +305,42 @@ public class Labels {
 
         return instance.substring(0, i);
     }
+
+    /**
+     * Get only the first part of instance name :
+     * for example : release1-kafka, the first part is release1
+     *
+     * @param instance Theoriginal name of the instance
+     * @return First part of the original instance name 
+     */
+    /*test*/ static String getOnlyFirstPartofInstanceLabelValue(String instance) {
+        if (instance == null) {
+            return "";
+        }
+
+        int i = Math.min(instance.length(), 63);
+        int fnd = 0;
+
+        while (i > 0) {
+            char lastChar = instance.charAt(i - 1);
+
+            if (lastChar == '.' || lastChar == '-' || lastChar == '_') {
+                i--;
+                if (fnd == 0) {
+                    fnd = 1;
+                }
+            } else {
+                if (fnd == 0) {
+                    i--;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        return instance.substring(0, i);
+    }
+
 
     /**
      * The same labels as this instance, but with the given {@code operatorName} for the {@code app.kubernetes.io/managed-by} key.
@@ -340,6 +386,13 @@ public class Labels {
      */
     public Map<String, String> toMap() {
         return labels;
+    }
+
+    /**
+     * @return A string which can be used as the Kuberneter label selector (e.g. key1=value1,key2=value2).
+     */
+    public String toSelectorString() {
+        return labels.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).collect(Collectors.joining(","));
     }
 
     /**
@@ -416,7 +469,6 @@ public class Labels {
                 .withStrimziCluster(instanceName)
                 .withKubernetesName(applicationName)
                 .withKubernetesInstance(instanceName)
-                .withKubernetesPartOf(instanceName)
-                .withKubernetesManagedBy(managedBy);
+                .withKubernetesPartOf(instanceName);
     }
 }
