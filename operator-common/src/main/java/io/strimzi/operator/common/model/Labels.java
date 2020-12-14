@@ -263,7 +263,7 @@ public class Labels {
      * @return A new instance with the given kubernetes application instance added.
      */
     public Labels withKubernetesInstance(String instanceName) {
-        return with(Labels.KUBERNETES_INSTANCE_LABEL, getOnlyFirstPartofInstanceLabelValue(getOrValidInstanceLabelValue(instanceName)));
+        return with(Labels.KUBERNETES_INSTANCE_LABEL, getOrValidInstanceLabelValue(instanceName));
     }
 
     /**
@@ -305,42 +305,6 @@ public class Labels {
 
         return instance.substring(0, i);
     }
-
-    /**
-     * Get only the first part of instance name :
-     * for example : release1-kafka, the first part is release1
-     *
-     * @param instance Theoriginal name of the instance
-     * @return First part of the original instance name 
-     */
-    /*test*/ static String getOnlyFirstPartofInstanceLabelValue(String instance) {
-        if (instance == null) {
-            return "";
-        }
-
-        int i = Math.min(instance.length(), 63);
-        int fnd = 0;
-
-        while (i > 0) {
-            char lastChar = instance.charAt(i - 1);
-
-            if (lastChar == '.' || lastChar == '-' || lastChar == '_') {
-                i--;
-                if (fnd == 0) {
-                    fnd = 1;
-                }
-            } else {
-                if (fnd == 0) {
-                    i--;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        return instance.substring(0, i);
-    }
-
 
     /**
      * The same labels as this instance, but with the given {@code operatorName} for the {@code app.kubernetes.io/managed-by} key.
