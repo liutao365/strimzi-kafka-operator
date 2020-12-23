@@ -1233,11 +1233,6 @@ public abstract class AbstractModel {
     protected void jvmPerformanceOptions(List<EnvVar> envVars) {
         StringBuilder jvmPerformanceOpts = new StringBuilder();
 
-        Boolean isServer = jvmOptions != null ? jvmOptions.isServer() : null;
-        if (isServer != null && isServer) {
-            jvmPerformanceOpts.append("-server");
-        }
-
         Map<String, String> xx = jvmOptions != null ? jvmOptions.getXx() : null;
         if (xx != null) {
             xx.forEach((k, v) -> {
@@ -1402,9 +1397,8 @@ public abstract class AbstractModel {
     protected ClusterRoleBinding getClusterRoleBinding(String name, Subject subject, RoleRef roleRef) {
         return new ClusterRoleBindingBuilder()
                 .withNewMetadata()
-                .withName(name)
-                .withOwnerReferences(createOwnerReference())
-                .withLabels(labels.toMap())
+                    .withName(name)
+                    .withLabels(labels.toMap())
                 .endMetadata()
                 .withSubjects(subject)
                 .withRoleRef(roleRef)

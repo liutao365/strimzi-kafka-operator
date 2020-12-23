@@ -533,7 +533,7 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
          * practice to the status.
          */
         Future<ReconciliationState> checkKafkaSpec() {
-            KafkaSpecChecker checker = new KafkaSpecChecker(kafkaAssembly.getSpec(), kafkaCluster, zkCluster);
+            KafkaSpecChecker checker = new KafkaSpecChecker(kafkaAssembly.getSpec(), versions, kafkaCluster, zkCluster);
             List<Condition> warnings = checker.run();
             kafkaStatus.addConditions(warnings);
             return Future.succeededFuture(this);
@@ -753,6 +753,49 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
                     });
         }
 
+        /**
+         * Does rolling update of Kafka pods based on the annotation on Pod level
+         *
+         * @param sts   The Kafka StatefulSet definition needed for the rolling update
+         *
+         * @return  Future with the result of the rolling update
+         */
+        @SuppressWarnings("deprecation")
+        Future<Void> kafkaManualPodRollingUpdate(StatefulSet sts) {
+            return podOperations.listAsync(namespace, kafkaCluster.getSelectorLabels())
+                    .compose(pods -> {
+                        List<String> podsToRoll = new ArrayList<>(0);
+
+                        for (Pod pod : pods)    {
+                            if (Annotations.booleanAnnotation(pod, Annotations.ANNO_STRIMZI_IO_MANUAL_ROLLING_UPDATE,
+                                    false, Annotations.ANNO_OP_STRIMZI_IO_MANUAL_ROLLING_UPDATE)) {
+                                podsToRoll.add(pod.getMetadata().getName());
+                            }
+                        }
+
+                        if (!podsToRoll.isEmpty())  {
+                            return maybeRollKafka(sts, pod -> {
+                                if (pod != null && podsToRoll.contains(pod.getMetadata().getName())) {
+                                    log.debug("{}: Rolling Kafka pod {} due to manual rolling update annotation on a pod", reconciliation, pod.getMetadata().getName());
+                                    return singletonList("manual rolling update annotation on a pod");
+                                } else {
+                                    return null;
+                                }
+                            });
+                        } else {
+                            return Future.succeededFuture();
+                        }
+                    });
+        }
+
+        /**
+         * Does manual rolling update of Kafka pods based on an annotation on the StatefulSet or on the Pods. Annotation
+         * on StatefulSet level triggers rolling update of all pods. Annotation on pods trigeres rolling update only of
+         * the selected pods. If the annotation is present on both StatefulSet and one or more pods, only one rolling
+         * update of all pods occurs.
+         *
+         * @return  Future with the result of the rolling update
+         */
         @SuppressWarnings("deprecation")
         Future<ReconciliationState> kafkaManualRollingUpdate() {
             Future<StatefulSet> futsts = kafkaSetOperations.getAsync(namespace, KafkaCluster.kafkaClusterName(name));
@@ -761,22 +804,72 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
                     if (sts != null) {
                         if (Annotations.booleanAnnotation(sts, Annotations.ANNO_STRIMZI_IO_MANUAL_ROLLING_UPDATE,
                                 false, Annotations.ANNO_OP_STRIMZI_IO_MANUAL_ROLLING_UPDATE)) {
+                            // User trigger rolling update of the whole StatefulSet
                             return maybeRollKafka(sts, pod -> {
                                 if (pod == null) {
                                     throw new ConcurrentDeletionException("Unexpectedly pod no longer exists during roll of StatefulSet.");
                                 }
-                                log.debug("{}: Rolling Kafka pod {} due to manual rolling update",
+                                log.debug("{}: Rolling Kafka pod {} due to manual rolling update annotation",
                                         reconciliation, pod.getMetadata().getName());
                                 return singletonList("manual rolling update");
                             });
+                        } else {
+                            // The STS is not annotated to roll all pods.
+                            // But maybe the individual pods are annotated to restart only some of them.
+                            return kafkaManualPodRollingUpdate(sts);
                         }
+                    } else {
+                        // STS does not exist => nothing to roll
+                        return Future.succeededFuture();
                     }
-                    return Future.succeededFuture();
                 }).map(i -> this);
             }
             return Future.succeededFuture(this);
         }
 
+        /**
+         * Does rolling update of Zoo pods based on the annotation on Pod level
+         *
+         * @param sts   The Zoo StatefulSet definition needed for the rolling update
+         *
+         * @return  Future with the result of the rolling update
+         */
+        @SuppressWarnings("deprecation")
+        Future<Void> zkManualPodRollingUpdate(StatefulSet sts) {
+            return podOperations.listAsync(namespace, zkCluster.getSelectorLabels())
+                    .compose(pods -> {
+                        List<String> podsToRoll = new ArrayList<>(0);
+
+                        for (Pod pod : pods)    {
+                            if (Annotations.booleanAnnotation(pod, Annotations.ANNO_STRIMZI_IO_MANUAL_ROLLING_UPDATE,
+                                    false, Annotations.ANNO_OP_STRIMZI_IO_MANUAL_ROLLING_UPDATE)) {
+                                podsToRoll.add(pod.getMetadata().getName());
+                            }
+                        }
+
+                        if (!podsToRoll.isEmpty())  {
+                            return zkSetOperations.maybeRollingUpdate(sts, pod -> {
+                                if (pod != null && podsToRoll.contains(pod.getMetadata().getName())) {
+                                    log.debug("{}: Rolling ZooKeeper pod {} due to manual rolling update annotation on a pod", reconciliation, pod.getMetadata().getName());
+                                    return singletonList("manual rolling update annotation on a pod");
+                                } else {
+                                    return null;
+                                }
+                            });
+                        } else {
+                            return Future.succeededFuture();
+                        }
+                    });
+        }
+
+        /**
+         * Does manual rolling update of Zoo pods based on an annotation on the StatefulSet or on the Pods. Annotation
+         * on StatefulSet level triggers rolling update of all pods. Annotation on pods trigeres rolling update only of
+         * the selected pods. If the annotation is present on both StatefulSet and one or more pods, only one rolling
+         * update of all pods occurs.
+         *
+         * @return  Future with the result of the rolling update
+         */
         @SuppressWarnings("deprecation")
         Future<ReconciliationState> zkManualRollingUpdate() {
             Future<StatefulSet> futsts = zkSetOperations.getAsync(namespace, ZookeeperCluster.zookeeperClusterName(name));
@@ -785,16 +878,21 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
                     if (sts != null) {
                         if (Annotations.booleanAnnotation(sts, Annotations.ANNO_STRIMZI_IO_MANUAL_ROLLING_UPDATE,
                                 false, Annotations.ANNO_OP_STRIMZI_IO_MANUAL_ROLLING_UPDATE)) {
-
+                            // User trigger rolling update of the whole StatefulSet
                             return zkSetOperations.maybeRollingUpdate(sts, pod -> {
-
                                 log.debug("{}: Rolling Zookeeper pod {} due to manual rolling update",
                                         reconciliation, pod.getMetadata().getName());
                                 return singletonList("manual rolling update");
                             });
+                        } else {
+                            // The STS is not annotated to roll all pods.
+                            // But maybe the individual pods are annotated to restart only some of them.
+                            return zkManualPodRollingUpdate(sts);
                         }
+                    } else {
+                        // STS does not exist => nothing to roll
+                        return Future.succeededFuture();
                     }
-                    return Future.succeededFuture();
                 }).map(i -> this);
             }
             return Future.succeededFuture(this);
@@ -1716,26 +1814,8 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
 
         Future<ReconciliationState> kafkaInitClusterRoleBinding() {
             ClusterRoleBinding desired = kafkaCluster.generateClusterRoleBinding(namespace);
-            Future<ReconcileResult<ClusterRoleBinding>> fut = clusterRoleBindingOperations.reconcile(
-                    KafkaResources.initContainerClusterRoleBindingName(name, namespace), desired);
 
-            Promise replacementPromise = Promise.promise();
-
-            fut.onComplete(res -> {
-                if (res.failed()) {
-                    if (desired == null && res.cause() != null && res.cause().getMessage() != null &&
-                            res.cause().getMessage().contains("Message: Forbidden!")) {
-                        log.debug("Ignoring forbidden access to ClusterRoleBindings which seems not needed while Kafka rack awareness is disabled.");
-                        replacementPromise.complete();
-                    } else {
-                        replacementPromise.fail(res.cause());
-                    }
-                } else {
-                    replacementPromise.complete();
-                }
-            });
-
-            return withVoid(replacementPromise.future());
+            return withVoid(withIgnoreRbacError(clusterRoleBindingOperations.reconcile(KafkaResources.initContainerClusterRoleBindingName(name, namespace), desired), desired));
         }
 
         Future<ReconciliationState> kafkaScaleDown() {
@@ -2418,43 +2498,46 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
             }
         }
 
-        Future<ConfigMap> getKafkaAncillaryCm()    {
-            final Future<ConfigMap> metricsCm;
+        Future<ConfigMap> getKafkaAncillaryCm() {
+            final Future<ConfigMap> metricsCmFut;
 
             if (kafkaCluster.isMetricsConfigured()) {
                 if (kafkaCluster.getMetricsConfigInCm() instanceof JmxPrometheusExporterMetrics) {
-                    metricsCm = configMapOperations.getAsync(kafkaAssembly.getMetadata().getNamespace(), ((JmxPrometheusExporterMetrics) (kafkaCluster.getMetricsConfigInCm())).getValueFrom().getConfigMapKeyRef().getName());
+                    metricsCmFut = configMapOperations.getAsync(kafkaAssembly.getMetadata().getNamespace(), ((JmxPrometheusExporterMetrics) (kafkaCluster.getMetricsConfigInCm())).getValueFrom().getConfigMapKeyRef().getName());
                 } else {
                     log.warn("Unknown metrics type {}", kafkaCluster.getMetricsConfigInCm().getType());
                     throw new InvalidResourceException("Unknown metrics type " + kafkaCluster.getMetricsConfigInCm().getType());
                 }
             } else {
-                metricsCm = Future.succeededFuture(null);
+                metricsCmFut = Future.succeededFuture(null);
             }
 
-            return metricsCm.compose(metricsCmRes -> {
-                ConfigMap loggingCm = null;
-                if (kafkaCluster.getLogging() instanceof ExternalLogging) {
-                    loggingCm = configMapOperations.get(kafkaAssembly.getMetadata().getNamespace(), ((ExternalLogging) kafkaCluster.getLogging()).getName());
-                }
+            Future<ConfigMap> loggingCmFut;
+            if (kafkaCluster.getLogging() instanceof ExternalLogging) {
+                loggingCmFut = configMapOperations.getAsync(kafkaAssembly.getMetadata().getNamespace(), ((ExternalLogging) kafkaCluster.getLogging()).getName());
+            } else {
+                loggingCmFut = Future.succeededFuture(null);
+            }
 
-                ConfigMap brokerCm = kafkaCluster.generateAncillaryConfigMap(loggingCm, metricsCmRes, kafkaAdvertisedHostnames, kafkaAdvertisedPorts);
-                KafkaConfiguration kc = KafkaConfiguration.unvalidated(kafkaCluster.getBrokersConfiguration()); // has to be after generateAncillaryConfigMap() which generates the configuration
+            return CompositeFuture.join(metricsCmFut, loggingCmFut).map(res -> new MetricsAndLoggingCm(res.resultAt(0), res.resultAt(1)))
+                .compose(metricsAndLoggingCm -> {
+                    ConfigMap brokerCm = kafkaCluster.generateAncillaryConfigMap(metricsAndLoggingCm.loggingCm, metricsAndLoggingCm.metricsCm, kafkaAdvertisedHostnames, kafkaAdvertisedPorts);
+                    KafkaConfiguration kc = KafkaConfiguration.unvalidated(kafkaCluster.getBrokersConfiguration()); // has to be after generateAncillaryConfigMap() which generates the configuration
 
-                // if BROKER_ADVERTISED_HOSTNAMES_FILENAME or BROKER_ADVERTISED_PORTS_FILENAME changes, compute a hash and put it into annotation
-                String brokerConfiguration = brokerCm.getData().getOrDefault(KafkaCluster.BROKER_ADVERTISED_HOSTNAMES_FILENAME, "");
-                brokerConfiguration += brokerCm.getData().getOrDefault(KafkaCluster.BROKER_ADVERTISED_PORTS_FILENAME, "");
-                brokerConfiguration += brokerCm.getData().getOrDefault(KafkaCluster.BROKER_LISTENERS_FILENAME, "");
+                    // if BROKER_ADVERTISED_HOSTNAMES_FILENAME or BROKER_ADVERTISED_PORTS_FILENAME changes, compute a hash and put it into annotation
+                    String brokerConfiguration = brokerCm.getData().getOrDefault(KafkaCluster.BROKER_ADVERTISED_HOSTNAMES_FILENAME, "");
+                    brokerConfiguration += brokerCm.getData().getOrDefault(KafkaCluster.BROKER_ADVERTISED_PORTS_FILENAME, "");
+                    brokerConfiguration += brokerCm.getData().getOrDefault(KafkaCluster.BROKER_LISTENERS_FILENAME, "");
 
-                this.kafkaBrokerConfigurationHash = Util.stringHash(brokerConfiguration);
-                this.kafkaBrokerConfigurationHash += Util.stringHash(kc.unknownConfigsWithValues(kafkaCluster.getKafkaVersion()).toString());
+                    this.kafkaBrokerConfigurationHash = Util.stringHash(brokerConfiguration);
+                    this.kafkaBrokerConfigurationHash += Util.stringHash(kc.unknownConfigsWithValues(kafkaCluster.getKafkaVersion()).toString());
 
-                String loggingConfiguration = brokerCm.getData().get(AbstractModel.ANCILLARY_CM_KEY_LOG_CONFIG);
-                this.kafkaLogging = loggingConfiguration;
-                this.kafkaLoggingAppendersHash = Util.stringHash(Util.getLoggingDynamicallyUnmodifiableEntries(loggingConfiguration));
+                    String loggingConfiguration = brokerCm.getData().get(AbstractModel.ANCILLARY_CM_KEY_LOG_CONFIG);
+                    this.kafkaLogging = loggingConfiguration;
+                    this.kafkaLoggingAppendersHash = Util.stringHash(Util.getLoggingDynamicallyUnmodifiableEntries(loggingConfiguration));
 
-                return Future.succeededFuture(brokerCm);
-            });
+                    return Future.succeededFuture(brokerCm);
+                });
         }
 
         Future<ReconciliationState> kafkaAncillaryCm() {
@@ -3181,9 +3264,9 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
         private final Future<ReconciliationState> getCruiseControlDescription() {
             CruiseControl cruiseControl = CruiseControl.fromCrd(kafkaAssembly, versions);
             if (cruiseControl != null) {
-                ConfigMap loggingCm = cruiseControl.getLogging() instanceof ExternalLogging ?
-                        configMapOperations.get(kafkaAssembly.getMetadata().getNamespace(), ((ExternalLogging) cruiseControl.getLogging()).getName()) :
-                        null;
+                final Future<ConfigMap> loggingCmFut = cruiseControl.getLogging() instanceof ExternalLogging ?
+                        configMapOperations.getAsync(kafkaAssembly.getMetadata().getNamespace(), ((ExternalLogging) cruiseControl.getLogging()).getName()) :
+                        Future.succeededFuture(null);
 
                 final Future<ConfigMap> metricsCm;
                 if (cruiseControl.isMetricsConfigured()) {
@@ -3197,8 +3280,8 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
                     metricsCm = Future.succeededFuture(null);
                 }
 
-                metricsCm.compose(cmRes -> {
-                    ConfigMap logAndMetricsConfigMap = cruiseControl.generateMetricsAndLogConfigMap(loggingCm, cmRes);
+                CompositeFuture.join(metricsCm, loggingCmFut).compose(metricsAndLoggingCm -> {
+                    ConfigMap logAndMetricsConfigMap = cruiseControl.generateMetricsAndLogConfigMap(metricsAndLoggingCm.resultAt(1), metricsAndLoggingCm.resultAt(0));
 
                     Map<String, String> annotations = singletonMap(CruiseControl.ANNO_STRIMZI_IO_LOGGING, logAndMetricsConfigMap.getData().get(ANCILLARY_CM_KEY_LOG_CONFIG));
 
@@ -3612,5 +3695,17 @@ public class KafkaAssemblyOperator extends AbstractAssemblyOperator<KubernetesCl
     @Override
     protected KafkaStatus createStatus() {
         return new KafkaStatus();
+    }
+
+    /**
+     * Deletes the ClusterRoleBinding which as a cluster-scoped resource cannot be deleted by the ownerReference
+     *
+     * @param reconciliation    The Reconciliation identification
+     * @return                  Future indicating the result of the deletion
+     */
+    @Override
+    protected Future<Boolean> delete(Reconciliation reconciliation) {
+        return withIgnoreRbacError(clusterRoleBindingOperations.reconcile(KafkaResources.initContainerClusterRoleBindingName(reconciliation.name(), reconciliation.namespace()), null), null)
+                .map(Boolean.FALSE); // Return FALSE since other resources are still deleted by garbage collection
     }
 }

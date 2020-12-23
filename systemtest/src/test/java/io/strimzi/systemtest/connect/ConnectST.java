@@ -266,7 +266,6 @@ class ConnectST extends AbstractST {
     }
 
     @Test
-    @Tag(ACCEPTANCE)
     @Tag(CONNECTOR_OPERATOR)
     @Tag(INTERNAL_CLIENTS_USED)
     void testKafkaConnectAndConnectorFileSinkPlugin() {
@@ -326,7 +325,6 @@ class ConnectST extends AbstractST {
                     .withNewJvmOptions()
                         .withXmx("200m")
                         .withXms("200m")
-                        .withServer(true)
                         .withXx(jvmOptionsXX)
                     .endJvmOptions()
                 .endSpec()
@@ -336,7 +334,7 @@ class ConnectST extends AbstractST {
         assertResources(NAMESPACE, podName, KafkaConnectResources.deploymentName(CLUSTER_NAME),
                 "400M", "2", "300M", "1");
         assertExpectedJavaOpts(podName, KafkaConnectResources.deploymentName(CLUSTER_NAME),
-                "-Xmx200m", "-Xms200m", "-server", "-XX:+UseG1GC");
+                "-Xmx200m", "-Xms200m", "-XX:+UseG1GC");
     }
 
     @Test
@@ -1197,7 +1195,7 @@ class ConnectST extends AbstractST {
             .withHostnames(aliasHostname)
             .build();
 
-        KafkaConnectResource.kafkaConnect(CLUSTER_NAME, CLUSTER_NAME, 1)
+        KafkaConnectResource.kafkaConnect(CLUSTER_NAME, 1)
             .editSpec()
                 .withNewTemplate()
                     .withNewPod()

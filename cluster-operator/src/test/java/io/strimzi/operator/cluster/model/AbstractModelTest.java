@@ -136,12 +136,6 @@ public class AbstractModelTest {
         assertThat(getPerformanceOptions(opts), is(nullValue()));
 
         opts = TestUtils.fromJson("{" +
-                "  \"-server\": \"true\"" +
-                "}", JvmOptions.class);
-
-        assertThat(getPerformanceOptions(opts), is("-server"));
-
-        opts = TestUtils.fromJson("{" +
                 "    \"-XX\":" +
                 "            {\"key1\": \"value1\"," +
                 "            \"key2\": \"true\"," +
@@ -209,10 +203,10 @@ public class AbstractModelTest {
         assertThat(am.determineImagePullPolicy(ImagePullPolicy.IFNOTPRESENT, "docker.io/repo/image:tag"), is(ImagePullPolicy.IFNOTPRESENT.toString()));
         assertThat(am.determineImagePullPolicy(ImagePullPolicy.IFNOTPRESENT, "docker.io/repo/image:latest"), is(ImagePullPolicy.IFNOTPRESENT.toString()));
         assertThat(am.determineImagePullPolicy(ImagePullPolicy.NEVER, "docker.io/repo/image:tag"), is(ImagePullPolicy.NEVER.toString()));
-        assertThat(am.determineImagePullPolicy(ImagePullPolicy.NEVER, "docker.io/repo/image:latest-kafka-2.6.0"), is(ImagePullPolicy.NEVER.toString()));
+        assertThat(am.determineImagePullPolicy(ImagePullPolicy.NEVER, "docker.io/repo/image:latest-kafka-2.7.0"), is(ImagePullPolicy.NEVER.toString()));
         assertThat(am.determineImagePullPolicy(null, "docker.io/repo/image:latest"), is(ImagePullPolicy.ALWAYS.toString()));
         assertThat(am.determineImagePullPolicy(null, "docker.io/repo/image:not-so-latest"), is(ImagePullPolicy.IFNOTPRESENT.toString()));
-        assertThat(am.determineImagePullPolicy(null, "docker.io/repo/image:latest-kafka-2.6.0"), is(ImagePullPolicy.ALWAYS.toString()));
+        assertThat(am.determineImagePullPolicy(null, "docker.io/repo/image:latest-kafka-2.7.0"), is(ImagePullPolicy.ALWAYS.toString()));
     }
 
 }

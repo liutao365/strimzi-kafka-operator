@@ -556,7 +556,7 @@ spec:
                               type: boolean
                               description: Configures whether the Kubernetes service
                                 DNS domain should be used or not. If set to `true`,
-                                the generated addresses with contain the service DNS
+                                the generated addresses will contain the service DNS
                                 domain suffix (by default `.cluster.local`, can be
                                 configured using environment variable `KUBERNETES_SERVICE_DNS_DOMAIN`).
                                 Defaults to `false`.This field can be used only with
@@ -4590,7 +4590,9 @@ spec:
                       webserver.session.path, webserver.accesslog., two.step., request.reason.required,metric.reporter.sampler.bootstrap.servers,
                       metric.reporter.topic, partition.metric.sample.store.topic,
                       broker.metric.sample.store.topic,capacity.config.file, self.healing.,
-                      anomaly.detection., ssl.'
+                      anomaly.detection., ssl. (with the exception of: ssl.cipher.suites,
+                      ssl.protocol, ssl.enabled.protocols, webserver.http.cors.enabled,webserver.http.cors.origin,
+                      webserver.http.cors.exposeheaders).'
                   metricsConfig:
                     type: object
                     properties:
@@ -6327,7 +6329,7 @@ spec:
                                 type: boolean
                                 description: Configures whether the Kubernetes service
                                   DNS domain should be used or not. If set to `true`,
-                                  the generated addresses with contain the service
+                                  the generated addresses will contain the service
                                   DNS domain suffix (by default `.cluster.local`,
                                   can be configured using environment variable `KUBERNETES_SERVICE_DNS_DOMAIN`).
                                   Defaults to `false`.This field can be used only
@@ -12456,7 +12458,9 @@ spec:
                       webserver.session.path, webserver.accesslog., two.step., request.reason.required,metric.reporter.sampler.bootstrap.servers,
                       metric.reporter.topic, partition.metric.sample.store.topic,
                       broker.metric.sample.store.topic,capacity.config.file, self.healing.,
-                      anomaly.detection., ssl.'
+                      anomaly.detection., ssl. (with the exception of: ssl.cipher.suites,
+                      ssl.protocol, ssl.enabled.protocols, webserver.http.cors.enabled,webserver.http.cors.origin,
+                      webserver.http.cors.exposeheaders).'
                   metrics:
                     type: object
                     description: The Prometheus JMX Exporter configuration. See https://github.com/prometheus/jmx_exporter
@@ -14197,7 +14201,7 @@ spec:
                                 type: boolean
                                 description: Configures whether the Kubernetes service
                                   DNS domain should be used or not. If set to `true`,
-                                  the generated addresses with contain the service
+                                  the generated addresses will contain the service
                                   DNS domain suffix (by default `.cluster.local`,
                                   can be configured using environment variable `KUBERNETES_SERVICE_DNS_DOMAIN`).
                                   Defaults to `false`.This field can be used only
@@ -20326,7 +20330,9 @@ spec:
                       webserver.session.path, webserver.accesslog., two.step., request.reason.required,metric.reporter.sampler.bootstrap.servers,
                       metric.reporter.topic, partition.metric.sample.store.topic,
                       broker.metric.sample.store.topic,capacity.config.file, self.healing.,
-                      anomaly.detection., ssl.'
+                      anomaly.detection., ssl. (with the exception of: ssl.cipher.suites,
+                      ssl.protocol, ssl.enabled.protocols, webserver.http.cors.enabled,webserver.http.cors.origin,
+                      webserver.http.cors.exposeheaders).'
                   metrics:
                     type: object
                     description: The Prometheus JMX Exporter configuration. See https://github.com/prometheus/jmx_exporter
