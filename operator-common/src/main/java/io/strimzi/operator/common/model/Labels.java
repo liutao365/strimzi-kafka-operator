@@ -151,7 +151,7 @@ public class Labels {
                 .entrySet()
                 .stream()
                 .filter(entryset ->
-                        !entryset.getKey().startsWith(Labels.KUBERNETES_DOMAIN) || entryset.getKey().equals(KUBERNETES_PART_OF_LABEL) || entryset.getKey().equals(KUBERNETES_DEPLOY_BY_LABEL) || entryset.getKey().equals(KUBERNETES_COMPONENT_LABEL) || entryset.getKey().equals(KUBERNETES_NAME_LABEL))
+                        !entryset.getKey().startsWith(Labels.KUBERNETES_DOMAIN) || entryset.getKey().equals(KUBERNETES_PART_OF_LABEL) || entryset.getKey().equals(KUBERNETES_DEPLOY_BY_LABEL) || entryset.getKey().equals(KUBERNETES_COMPONENT_LABEL) || entryset.getKey().equals(KUBERNETES_NAME_LABEL) || entryset.getKey().equals(KUBERNETES_MANAGED_BY_LABEL))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         return new Labels(filteredLabels);
