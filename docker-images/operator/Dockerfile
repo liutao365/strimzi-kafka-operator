@@ -1,4 +1,4 @@
-FROM strimzi/base:latest
+FROM kafka-kylin-arm64:0.0.1
 
 # Add strimzi user with UID 1001
 # The user is in the group 0 to have access to the mounted volumes and storage

@@ -1,4 +1,4 @@
-FROM strimzi/base:latest
+FROM kafka-kylin-arm64:0.0.1
 
 ENV JMXTRANS_HOME /usr/share/jmxtrans
 ENV PATH $JMXTRANS_HOME/bin:$PATH

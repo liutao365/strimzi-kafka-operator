@@ -1,4 +1,4 @@
-FROM centos:7
+FROM tpaas-registry-itg.jdcloud.com/tpaas/base:kylin10-arm64
 ARG JAVA_VERSION=11
 
 RUN yum -y update \
