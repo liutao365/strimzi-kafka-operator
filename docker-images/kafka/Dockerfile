@@ -1,4 +1,4 @@
-FROM kafka-kylin-arm64:0.0.1
+FROM docker.io/liu0x54/kafka:0.0.2
 
 ARG KAFKA_DIST_DIR
 ARG KAFKA_VERSION
@@ -31,7 +31,7 @@ ENV KAFKA_EXPORTER_VERSION=1.3.1
 RUN curl --insecure -LO https://github.com/danielqsj/kafka_exporter/releases/download/v${KAFKA_EXPORTER_VERSION}/kafka_exporter-${KAFKA_EXPORTER_VERSION}.linux-arm64.tar.gz \
     && mkdir $KAFKA_EXPORTER_HOME \
     && tar xvfz kafka_exporter-${KAFKA_EXPORTER_VERSION}.linux-arm64.tar.gz -C $KAFKA_EXPORTER_HOME --strip-components=1 \
-    && rm -f kafka_exporter-${KAFKA_EXPORTER_VERSION}.linux-amd64.tar.gz*
+    && rm -f kafka_exporter-${KAFKA_EXPORTER_VERSION}.linux-arm64.tar.gz*
 
 COPY ./exporter-scripts $KAFKA_EXPORTER_HOME
 
